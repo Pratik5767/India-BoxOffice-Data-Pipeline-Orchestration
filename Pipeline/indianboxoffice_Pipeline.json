@@ -1,0 +1,877 @@
+{
+    "name": "indianboxoffice_Pipeline",
+    "objectId": "a24ed10b-22bc-420b-8324-0b2b6e710737",
+    "properties": {
+        "activities": [
+            {
+                "name": "Get Metadata from lakehouse",
+                "type": "GetMetadata",
+                "dependsOn": [],
+                "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "typeProperties": {
+                    "fieldList": [
+                        "childItems"
+                    ],
+                    "datasetSettings": {
+                        "annotations": [],
+                        "linkedService": {
+                            "name": "indianboxoffice_LH",
+                            "properties": {
+                                "annotations": [],
+                                "type": "Lakehouse",
+                                "typeProperties": {
+                                    "workspaceId": "0c760a85-eb61-480a-8612-7342da5ebbc4",
+                                    "artifactId": "f47a5bc9-1e5b-4d3f-82ae-f292774b109f",
+                                    "rootFolder": "Files"
+                                }
+                            }
+                        },
+                        "type": "DelimitedText",
+                        "typeProperties": {
+                            "location": {
+                                "type": "LakehouseLocation",
+                                "folderPath": "boxoffice_datasets"
+                            },
+                            "columnDelimiter": ",",
+                            "escapeChar": "\\",
+                            "firstRowAsHeader": true,
+                            "quoteChar": "\""
+                        },
+                        "schema": []
+                    },
+                    "storeSettings": {
+                        "type": "AzureBlobStorageReadSettings",
+                        "recursive": true,
+                        "enablePartitionDiscovery": false
+                    },
+                    "formatSettings": {
+                        "type": "DelimitedTextReadSettings"
+                    }
+                }
+            },
+            {
+                "name": "Bollywood filter",
+                "type": "Filter",
+                "dependsOn": [
+                    {
+                        "activity": "Get Metadata from lakehouse",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "typeProperties": {
+                    "items": {
+                        "value": "@activity('Get Metadata from lakehouse').output.childItems",
+                        "type": "Expression"
+                    },
+                    "condition": {
+                        "value": "@contains(item().name, 'Bollywood')",
+                        "type": "Expression"
+                    }
+                }
+            },
+            {
+                "name": "Bollywood ForEach",
+                "type": "ForEach",
+                "dependsOn": [
+                    {
+                        "activity": "Bollywood filter",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "typeProperties": {
+                    "items": {
+                        "value": "@activity('Bollywood filter').output.Value",
+                        "type": "Expression"
+                    },
+                    "isSequential": true,
+                    "activities": [
+                        {
+                            "name": "Bollywood Copy data",
+                            "type": "Copy",
+                            "dependsOn": [],
+                            "policy": {
+                                "timeout": "0.12:00:00",
+                                "retry": 0,
+                                "retryIntervalInSeconds": 30,
+                                "secureOutput": false,
+                                "secureInput": false
+                            },
+                            "typeProperties": {
+                                "source": {
+                                    "type": "DelimitedTextSource",
+                                    "storeSettings": {
+                                        "type": "AzureBlobStorageReadSettings",
+                                        "recursive": false,
+                                        "enablePartitionDiscovery": false
+                                    },
+                                    "formatSettings": {
+                                        "type": "DelimitedTextReadSettings"
+                                    },
+                                    "datasetSettings": {
+                                        "annotations": [],
+                                        "linkedService": {
+                                            "name": "indianboxoffice_LH",
+                                            "properties": {
+                                                "annotations": [],
+                                                "type": "Lakehouse",
+                                                "typeProperties": {
+                                                    "workspaceId": "0c760a85-eb61-480a-8612-7342da5ebbc4",
+                                                    "artifactId": "f47a5bc9-1e5b-4d3f-82ae-f292774b109f",
+                                                    "rootFolder": "Files"
+                                                }
+                                            }
+                                        },
+                                        "type": "DelimitedText",
+                                        "typeProperties": {
+                                            "location": {
+                                                "type": "LakehouseLocation",
+                                                "fileName": {
+                                                    "value": "@item().name",
+                                                    "type": "Expression"
+                                                },
+                                                "folderPath": "boxoffice_datasets"
+                                            },
+                                            "columnDelimiter": ",",
+                                            "escapeChar": "\\",
+                                            "firstRowAsHeader": true,
+                                            "quoteChar": "\""
+                                        },
+                                        "schema": []
+                                    }
+                                },
+                                "sink": {
+                                    "type": "DataWarehouseSink",
+                                    "allowCopyCommand": true,
+                                    "writeBehavior": "Insert",
+                                    "tableOption": "autoCreate",
+                                    "datasetSettings": {
+                                        "annotations": [],
+                                        "linkedService": {
+                                            "name": "indianboxoffice_WH",
+                                            "properties": {
+                                                "annotations": [],
+                                                "type": "DataWarehouse",
+                                                "typeProperties": {
+                                                    "endpoint": "7vo4vqvye4muxh52o2n7udlgm4-qufhmddb5mferbqsonbnuxv3yq.datawarehouse.fabric.microsoft.com",
+                                                    "artifactId": "66e87c0f-c1cb-4f6d-a22f-8243f4b783e4",
+                                                    "workspaceId": "0c760a85-eb61-480a-8612-7342da5ebbc4"
+                                                }
+                                            }
+                                        },
+                                        "type": "DataWarehouseTable",
+                                        "schema": [],
+                                        "typeProperties": {
+                                            "schema": "dbo",
+                                            "table": "bollywood"
+                                        }
+                                    }
+                                },
+                                "enableStaging": true,
+                                "translator": {
+                                    "type": "TabularTranslator",
+                                    "typeConversion": true,
+                                    "typeConversionSettings": {
+                                        "allowDataTruncation": true,
+                                        "treatBooleanAsNumber": false
+                                    }
+                                }
+                            }
+                        }
+                    ]
+                }
+            },
+            {
+                "name": "Sandalwood filter",
+                "type": "Filter",
+                "dependsOn": [
+                    {
+                        "activity": "Get Metadata from lakehouse",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "typeProperties": {
+                    "items": {
+                        "value": "@activity('Get Metadata from lakehouse').output.childItems",
+                        "type": "Expression"
+                    },
+                    "condition": {
+                        "value": "@contains(item().name, 'Sandalwood')",
+                        "type": "Expression"
+                    }
+                }
+            },
+            {
+                "name": "Kollywood filter",
+                "type": "Filter",
+                "dependsOn": [
+                    {
+                        "activity": "Get Metadata from lakehouse",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "typeProperties": {
+                    "items": {
+                        "value": "@activity('Get Metadata from lakehouse').output.childItems",
+                        "type": "Expression"
+                    },
+                    "condition": {
+                        "value": "@contains(item().name, 'Kollywood')",
+                        "type": "Expression"
+                    }
+                }
+            },
+            {
+                "name": "Mollywood filter",
+                "type": "Filter",
+                "dependsOn": [
+                    {
+                        "activity": "Get Metadata from lakehouse",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "typeProperties": {
+                    "items": {
+                        "value": "@activity('Get Metadata from lakehouse').output.childItems",
+                        "type": "Expression"
+                    },
+                    "condition": {
+                        "value": "@contains(item().name, 'Mollywood')",
+                        "type": "Expression"
+                    }
+                }
+            },
+            {
+                "name": "Kollywood ForEach",
+                "type": "ForEach",
+                "dependsOn": [
+                    {
+                        "activity": "Kollywood filter",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "typeProperties": {
+                    "items": {
+                        "value": "@activity('Kollywood filter').output.Value",
+                        "type": "Expression"
+                    },
+                    "isSequential": true,
+                    "activities": [
+                        {
+                            "name": "Kollywood Copy data",
+                            "type": "Copy",
+                            "dependsOn": [],
+                            "policy": {
+                                "timeout": "0.12:00:00",
+                                "retry": 0,
+                                "retryIntervalInSeconds": 30,
+                                "secureOutput": false,
+                                "secureInput": false
+                            },
+                            "typeProperties": {
+                                "source": {
+                                    "type": "DelimitedTextSource",
+                                    "storeSettings": {
+                                        "type": "LakehouseReadSettings",
+                                        "recursive": false,
+                                        "enablePartitionDiscovery": false
+                                    },
+                                    "formatSettings": {
+                                        "type": "DelimitedTextReadSettings"
+                                    },
+                                    "datasetSettings": {
+                                        "annotations": [],
+                                        "linkedService": {
+                                            "name": "indianboxoffice_LH",
+                                            "properties": {
+                                                "annotations": [],
+                                                "type": "Lakehouse",
+                                                "typeProperties": {
+                                                    "workspaceId": "0c760a85-eb61-480a-8612-7342da5ebbc4",
+                                                    "artifactId": "f47a5bc9-1e5b-4d3f-82ae-f292774b109f",
+                                                    "rootFolder": "Files"
+                                                }
+                                            }
+                                        },
+                                        "type": "DelimitedText",
+                                        "typeProperties": {
+                                            "location": {
+                                                "type": "LakehouseLocation",
+                                                "fileName": {
+                                                    "value": "@item().name",
+                                                    "type": "Expression"
+                                                },
+                                                "folderPath": "boxoffice_datasets"
+                                            },
+                                            "columnDelimiter": ",",
+                                            "escapeChar": "\\",
+                                            "firstRowAsHeader": true,
+                                            "quoteChar": "\""
+                                        },
+                                        "schema": []
+                                    }
+                                },
+                                "sink": {
+                                    "type": "DataWarehouseSink",
+                                    "allowCopyCommand": true,
+                                    "writeBehavior": "Insert",
+                                    "tableOption": "autoCreate",
+                                    "datasetSettings": {
+                                        "annotations": [],
+                                        "linkedService": {
+                                            "name": "indianboxoffice_WH",
+                                            "properties": {
+                                                "annotations": [],
+                                                "type": "DataWarehouse",
+                                                "typeProperties": {
+                                                    "endpoint": "7vo4vqvye4muxh52o2n7udlgm4-qufhmddb5mferbqsonbnuxv3yq.datawarehouse.fabric.microsoft.com",
+                                                    "artifactId": "66e87c0f-c1cb-4f6d-a22f-8243f4b783e4",
+                                                    "workspaceId": "0c760a85-eb61-480a-8612-7342da5ebbc4"
+                                                }
+                                            }
+                                        },
+                                        "type": "DataWarehouseTable",
+                                        "schema": [],
+                                        "typeProperties": {
+                                            "schema": "dbo",
+                                            "table": "kollywood"
+                                        }
+                                    }
+                                },
+                                "enableStaging": true,
+                                "translator": {
+                                    "type": "TabularTranslator",
+                                    "typeConversion": true,
+                                    "typeConversionSettings": {
+                                        "allowDataTruncation": true,
+                                        "treatBooleanAsNumber": false
+                                    }
+                                }
+                            }
+                        }
+                    ]
+                }
+            },
+            {
+                "name": "Kollywood Teams",
+                "type": "MicrosoftTeams",
+                "dependsOn": [
+                    {
+                        "activity": "Kollywood ForEach",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "typeProperties": {
+                    "operationType": "SendMessageInChannel",
+                    "content": "<p>Hello Everyone</p>\n<p>The indian box office pipeline id (<strong>Kollywood</strong>) @{pipeline().Pipeline} and the pipeline run id @{pipeline().RunId} has run successfully.</p>\n<p>Kindly check the output in <strong>indianboxoffice_WH</strong> and let's know your confirmation in chat box.</p>\n<p>Thank you!</p>\n<p>Regard</p>\n<p>Pratik Salunkhe</p>",
+                    "teamId": "42b7b1d6-edfc-4242-8673-58892ad0c66b",
+                    "channelId": "19:z7H2qceS24iFSVjFa4Y8B71Oo_qsABCqZsYM5VxMz4w1@thread.tacv2"
+                },
+                "externalReferences": {
+                    "connection": "85b4ef96-789b-44e4-9950-c79791c0f7e9"
+                }
+            },
+            {
+                "name": "Mollywood ForEach",
+                "type": "ForEach",
+                "dependsOn": [
+                    {
+                        "activity": "Mollywood filter",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "typeProperties": {
+                    "items": {
+                        "value": "@activity('Mollywood filter').output.Value",
+                        "type": "Expression"
+                    },
+                    "isSequential": true,
+                    "activities": [
+                        {
+                            "name": "Mollywood Copy data",
+                            "type": "Copy",
+                            "dependsOn": [],
+                            "policy": {
+                                "timeout": "0.12:00:00",
+                                "retry": 0,
+                                "retryIntervalInSeconds": 30,
+                                "secureOutput": false,
+                                "secureInput": false
+                            },
+                            "typeProperties": {
+                                "source": {
+                                    "type": "DelimitedTextSource",
+                                    "storeSettings": {
+                                        "type": "LakehouseReadSettings",
+                                        "recursive": false,
+                                        "enablePartitionDiscovery": false
+                                    },
+                                    "formatSettings": {
+                                        "type": "DelimitedTextReadSettings"
+                                    },
+                                    "datasetSettings": {
+                                        "annotations": [],
+                                        "linkedService": {
+                                            "name": "indianboxoffice_LH",
+                                            "properties": {
+                                                "annotations": [],
+                                                "type": "Lakehouse",
+                                                "typeProperties": {
+                                                    "workspaceId": "0c760a85-eb61-480a-8612-7342da5ebbc4",
+                                                    "artifactId": "f47a5bc9-1e5b-4d3f-82ae-f292774b109f",
+                                                    "rootFolder": "Files"
+                                                }
+                                            }
+                                        },
+                                        "type": "DelimitedText",
+                                        "typeProperties": {
+                                            "location": {
+                                                "type": "LakehouseLocation",
+                                                "fileName": {
+                                                    "value": "@item().name",
+                                                    "type": "Expression"
+                                                },
+                                                "folderPath": "boxoffice_datasets"
+                                            },
+                                            "columnDelimiter": ",",
+                                            "escapeChar": "\\",
+                                            "firstRowAsHeader": true,
+                                            "quoteChar": "\""
+                                        },
+                                        "schema": []
+                                    }
+                                },
+                                "sink": {
+                                    "type": "DataWarehouseSink",
+                                    "allowCopyCommand": true,
+                                    "writeBehavior": "Insert",
+                                    "tableOption": "autoCreate",
+                                    "datasetSettings": {
+                                        "annotations": [],
+                                        "linkedService": {
+                                            "name": "indianboxoffice_WH",
+                                            "properties": {
+                                                "annotations": [],
+                                                "type": "DataWarehouse",
+                                                "typeProperties": {
+                                                    "endpoint": "7vo4vqvye4muxh52o2n7udlgm4-qufhmddb5mferbqsonbnuxv3yq.datawarehouse.fabric.microsoft.com",
+                                                    "artifactId": "66e87c0f-c1cb-4f6d-a22f-8243f4b783e4",
+                                                    "workspaceId": "0c760a85-eb61-480a-8612-7342da5ebbc4"
+                                                }
+                                            }
+                                        },
+                                        "type": "DataWarehouseTable",
+                                        "schema": [],
+                                        "typeProperties": {
+                                            "schema": "dbo",
+                                            "table": "mollywood"
+                                        }
+                                    }
+                                },
+                                "enableStaging": true,
+                                "translator": {
+                                    "type": "TabularTranslator",
+                                    "typeConversion": true,
+                                    "typeConversionSettings": {
+                                        "allowDataTruncation": true,
+                                        "treatBooleanAsNumber": false
+                                    }
+                                }
+                            }
+                        }
+                    ]
+                }
+            },
+            {
+                "name": "Mollywood Teams",
+                "type": "MicrosoftTeams",
+                "dependsOn": [
+                    {
+                        "activity": "Mollywood ForEach",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "typeProperties": {
+                    "operationType": "SendMessageInChannel",
+                    "content": "<p>Hello Everyone</p>\n<p>The indian box office pipeline id (<strong>Mollywood</strong>) @{pipeline().Pipeline} and the pipeline run id @{pipeline().RunId} has ran successfully.</p>\n<p>Kindly check the output in the <strong>indianboxoffice_WH </strong>and let's know your confirmation in chat box.</p>\n<p>Thank you!</p>\n<p>Regard</p>\n<p>Pratik Salunkhe</p>",
+                    "teamId": "42b7b1d6-edfc-4242-8673-58892ad0c66b",
+                    "channelId": "19:z7H2qceS24iFSVjFa4Y8B71Oo_qsABCqZsYM5VxMz4w1@thread.tacv2"
+                },
+                "externalReferences": {
+                    "connection": "85b4ef96-789b-44e4-9950-c79791c0f7e9"
+                }
+            },
+            {
+                "name": "Sandalwood ForEach",
+                "type": "ForEach",
+                "dependsOn": [
+                    {
+                        "activity": "Sandalwood filter",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "typeProperties": {
+                    "items": {
+                        "value": "@activity('Sandalwood filter').output.Value",
+                        "type": "Expression"
+                    },
+                    "isSequential": true,
+                    "activities": [
+                        {
+                            "name": "Sandalwood Copy data",
+                            "type": "Copy",
+                            "dependsOn": [],
+                            "policy": {
+                                "timeout": "0.12:00:00",
+                                "retry": 0,
+                                "retryIntervalInSeconds": 30,
+                                "secureOutput": false,
+                                "secureInput": false
+                            },
+                            "typeProperties": {
+                                "source": {
+                                    "type": "DelimitedTextSource",
+                                    "storeSettings": {
+                                        "type": "LakehouseReadSettings",
+                                        "recursive": false,
+                                        "enablePartitionDiscovery": false
+                                    },
+                                    "formatSettings": {
+                                        "type": "DelimitedTextReadSettings"
+                                    },
+                                    "datasetSettings": {
+                                        "annotations": [],
+                                        "linkedService": {
+                                            "name": "indianboxoffice_LH",
+                                            "properties": {
+                                                "annotations": [],
+                                                "type": "Lakehouse",
+                                                "typeProperties": {
+                                                    "workspaceId": "0c760a85-eb61-480a-8612-7342da5ebbc4",
+                                                    "artifactId": "f47a5bc9-1e5b-4d3f-82ae-f292774b109f",
+                                                    "rootFolder": "Files"
+                                                }
+                                            }
+                                        },
+                                        "type": "DelimitedText",
+                                        "typeProperties": {
+                                            "location": {
+                                                "type": "LakehouseLocation",
+                                                "fileName": {
+                                                    "value": "@item().name",
+                                                    "type": "Expression"
+                                                },
+                                                "folderPath": "boxoffice_datasets"
+                                            },
+                                            "columnDelimiter": ",",
+                                            "escapeChar": "\\",
+                                            "firstRowAsHeader": true,
+                                            "quoteChar": "\""
+                                        },
+                                        "schema": []
+                                    }
+                                },
+                                "sink": {
+                                    "type": "DataWarehouseSink",
+                                    "allowCopyCommand": true,
+                                    "writeBehavior": "Insert",
+                                    "tableOption": "autoCreate",
+                                    "datasetSettings": {
+                                        "annotations": [],
+                                        "linkedService": {
+                                            "name": "indianboxoffice_WH",
+                                            "properties": {
+                                                "annotations": [],
+                                                "type": "DataWarehouse",
+                                                "typeProperties": {
+                                                    "endpoint": "7vo4vqvye4muxh52o2n7udlgm4-qufhmddb5mferbqsonbnuxv3yq.datawarehouse.fabric.microsoft.com",
+                                                    "artifactId": "66e87c0f-c1cb-4f6d-a22f-8243f4b783e4",
+                                                    "workspaceId": "0c760a85-eb61-480a-8612-7342da5ebbc4"
+                                                }
+                                            }
+                                        },
+                                        "type": "DataWarehouseTable",
+                                        "schema": [],
+                                        "typeProperties": {
+                                            "schema": "dbo",
+                                            "table": "sandalwood"
+                                        }
+                                    }
+                                },
+                                "enableStaging": true,
+                                "translator": {
+                                    "type": "TabularTranslator",
+                                    "typeConversion": true,
+                                    "typeConversionSettings": {
+                                        "allowDataTruncation": true,
+                                        "treatBooleanAsNumber": false
+                                    }
+                                }
+                            }
+                        }
+                    ]
+                }
+            },
+            {
+                "name": "Sandalwood Teams",
+                "type": "MicrosoftTeams",
+                "dependsOn": [
+                    {
+                        "activity": "Sandalwood ForEach",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "typeProperties": {
+                    "operationType": "SendMessageInChannel",
+                    "content": "<p>Hello Everyone&nbsp;</p>\n<p>The indian box office pipeline id (<strong>Sandalwood</strong>) @{pipeline().Pipeline} and the pipeline run id @{pipeline().RunId} has run successfully.</p>\n<p>kindly check the output in <strong>indianboxoffice_WH </strong>and let's know your confirmation in the chat box.</p>\n<p>Thank you!</p>\n<p>Regards</p>\n<p>Pratik Salunkhe<strong>&nbsp;</strong></p>",
+                    "teamId": "42b7b1d6-edfc-4242-8673-58892ad0c66b",
+                    "channelId": "19:z7H2qceS24iFSVjFa4Y8B71Oo_qsABCqZsYM5VxMz4w1@thread.tacv2"
+                },
+                "externalReferences": {
+                    "connection": "85b4ef96-789b-44e4-9950-c79791c0f7e9"
+                }
+            },
+            {
+                "name": "Tollywood Filter",
+                "type": "Filter",
+                "dependsOn": [
+                    {
+                        "activity": "Get Metadata from lakehouse",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "typeProperties": {
+                    "items": {
+                        "value": "@activity('Get Metadata from lakehouse').output.childItems",
+                        "type": "Expression"
+                    },
+                    "condition": {
+                        "value": "@contains(item().name, 'Tollywood')",
+                        "type": "Expression"
+                    }
+                }
+            },
+            {
+                "name": "Tollywood ForEach",
+                "type": "ForEach",
+                "dependsOn": [
+                    {
+                        "activity": "Tollywood Filter",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "typeProperties": {
+                    "items": {
+                        "value": "@activity('Tollywood Filter').output.Value",
+                        "type": "Expression"
+                    },
+                    "isSequential": true,
+                    "activities": [
+                        {
+                            "name": "Tollywood Copy data",
+                            "type": "Copy",
+                            "dependsOn": [],
+                            "policy": {
+                                "timeout": "0.12:00:00",
+                                "retry": 0,
+                                "retryIntervalInSeconds": 30,
+                                "secureOutput": false,
+                                "secureInput": false
+                            },
+                            "typeProperties": {
+                                "source": {
+                                    "type": "DelimitedTextSource",
+                                    "storeSettings": {
+                                        "type": "LakehouseReadSettings",
+                                        "recursive": false,
+                                        "enablePartitionDiscovery": false
+                                    },
+                                    "formatSettings": {
+                                        "type": "DelimitedTextReadSettings"
+                                    },
+                                    "datasetSettings": {
+                                        "annotations": [],
+                                        "linkedService": {
+                                            "name": "indianboxoffice_LH",
+                                            "properties": {
+                                                "annotations": [],
+                                                "type": "Lakehouse",
+                                                "typeProperties": {
+                                                    "workspaceId": "0c760a85-eb61-480a-8612-7342da5ebbc4",
+                                                    "artifactId": "f47a5bc9-1e5b-4d3f-82ae-f292774b109f",
+                                                    "rootFolder": "Files"
+                                                }
+                                            }
+                                        },
+                                        "type": "DelimitedText",
+                                        "typeProperties": {
+                                            "location": {
+                                                "type": "LakehouseLocation",
+                                                "fileName": {
+                                                    "value": "@item().name",
+                                                    "type": "Expression"
+                                                },
+                                                "folderPath": "boxoffice_datasets"
+                                            },
+                                            "columnDelimiter": ",",
+                                            "escapeChar": "\\",
+                                            "firstRowAsHeader": true,
+                                            "quoteChar": "\""
+                                        },
+                                        "schema": []
+                                    }
+                                },
+                                "sink": {
+                                    "type": "DataWarehouseSink",
+                                    "allowCopyCommand": true,
+                                    "writeBehavior": "Insert",
+                                    "tableOption": "autoCreate",
+                                    "datasetSettings": {
+                                        "annotations": [],
+                                        "linkedService": {
+                                            "name": "indianboxoffice_WH",
+                                            "properties": {
+                                                "annotations": [],
+                                                "type": "DataWarehouse",
+                                                "typeProperties": {
+                                                    "endpoint": "7vo4vqvye4muxh52o2n7udlgm4-qufhmddb5mferbqsonbnuxv3yq.datawarehouse.fabric.microsoft.com",
+                                                    "artifactId": "66e87c0f-c1cb-4f6d-a22f-8243f4b783e4",
+                                                    "workspaceId": "0c760a85-eb61-480a-8612-7342da5ebbc4"
+                                                }
+                                            }
+                                        },
+                                        "type": "DataWarehouseTable",
+                                        "schema": [],
+                                        "typeProperties": {
+                                            "schema": "dbo",
+                                            "table": "tollywood"
+                                        }
+                                    }
+                                },
+                                "enableStaging": true,
+                                "translator": {
+                                    "type": "TabularTranslator",
+                                    "typeConversion": true,
+                                    "typeConversionSettings": {
+                                        "allowDataTruncation": true,
+                                        "treatBooleanAsNumber": false
+                                    }
+                                }
+                            }
+                        }
+                    ]
+                }
+            },
+            {
+                "name": "Tollywood Teams",
+                "type": "MicrosoftTeams",
+                "dependsOn": [
+                    {
+                        "activity": "Tollywood ForEach",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "typeProperties": {
+                    "operationType": "SendMessageInChannel",
+                    "content": "<p>Hello Everyone</p>\n<p>The indian box office pipeline id (<strong>Tollywood</strong>) @{pipeline().Pipeline} and the pipeline run id @{pipeline().RunId} has run successfully.</p>\n<p>Kindly check the output in <strong>indianboxoffice_WH </strong>and let's know your confirmation in chat box.</p>\n<p>Thank you!</p>\n<p>Regards</p>\n<p>Pratik Salunkhe</p>",
+                    "teamId": "42b7b1d6-edfc-4242-8673-58892ad0c66b",
+                    "channelId": "19:z7H2qceS24iFSVjFa4Y8B71Oo_qsABCqZsYM5VxMz4w1@thread.tacv2"
+                },
+                "externalReferences": {
+                    "connection": "85b4ef96-789b-44e4-9950-c79791c0f7e9"
+                }
+            },
+            {
+                "name": "Bollywood Teams",
+                "type": "MicrosoftTeams",
+                "dependsOn": [
+                    {
+                        "activity": "Bollywood ForEach",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "typeProperties": {
+                    "operationType": "SendMessageInChannel",
+                    "content": "<p>Hello Everyone</p>\n<p>The indian box office pipeline id (<strong>Bollywood</strong>) @{pipeline().Pipeline} and the pipeline run id @{pipeline().RunId} has run successfully.</p>\n<p>Kindly check the output in <strong>indianboxoffice_WH</strong> and let's know your confirmation in chat box.</p>\n<p>Thank you!</p>\n<p>Regard</p>\n<p>Pratik Salunkhe</p>",
+                    "teamId": "42b7b1d6-edfc-4242-8673-58892ad0c66b",
+                    "channelId": "19:z7H2qceS24iFSVjFa4Y8B71Oo_qsABCqZsYM5VxMz4w1@thread.tacv2"
+                },
+                "externalReferences": {
+                    "connection": "85b4ef96-789b-44e4-9950-c79791c0f7e9"
+                }
+            }
+        ],
+        "lastModifiedByObjectId": "5c8b9eac-bf51-49cc-b47c-a59ec8373d01",
+        "lastPublishTime": "2026-03-29T17:29:45Z"
+    }
+}
